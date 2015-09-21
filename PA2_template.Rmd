@@ -1,0 +1,22 @@
+---
+title: 'Reproducible Research: Peer Assessment 2'
+author: "Jim Callahan"
+date: "September 21, 2015"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+### Synopsis:
+
+### Data Processing
+
+
+### Results
+
+#### Severe Storm Events -- type and frequency
+
+#### Health Impact
+
+#### Economic Impact
+
