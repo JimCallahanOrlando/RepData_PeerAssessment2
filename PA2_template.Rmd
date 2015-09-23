@@ -3,18 +3,78 @@ title: 'Reproducible Research: Peer Assessment 2'
 author: "Jim Callahan"
 date: "September 21, 2015"
 output:
+  pdf_document: default
   html_document:
     keep_md: yes
-  pdf_document: default
 ---
 ### Synopsis:
+Get this to work and then see what to do next.
 
 ### Data Processing
+```{r}
+filename <- "~/GitHub/RepData_PeerAssessment2/data/repdata%2Fdata%2FStormData.csv.bz2"
+NOAA <- read.csv(filename, 
+                 stringsAsFactors = FALSE )
+str(NOAA)
+```
+
+
+
+
+```{r}
+#### Select Columns of interest:
+####        Primary key:    REFNUM
+####        Date and Time:  BGN_DATE, BGN_TIME, 
+####        Location:       STATE__, COUNTY, COUNTY_END, LATITUDE, LONGITUDE
+####        Type of Storm:  EVTYPE
+####        Damage:         PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP
+####        Casualties:     FATALITIES, INJURIES
+
+# storms <- subset(NOAA, select())
+
+#### Select Rows of interest (exclude freakish events without impact):
+#### Select only observations with at least one injury (or fatality) 
+####         or non-zero property damage (or crop damage).
+storms <- storms[NOAA$INJURIES > 0 | NOAA$FATALITIES > 0 | NOAA$PROPDMG > 0 | NOAA$CROPDMG > 0]
+
+
+#### Select years of interest (Since 2001 "21st Century Storms" or last 25 years)
+
+#### Remove the original NOAA database
+rm(NOAA)
+
+```
+
+```{r}
+#### Scale Property Damage and Crop Damage
+with(storms, 
+     {
+if ( PROPDMGEXP == "K") {PropertyDamage <- PROPDMG * 1000}
+if ( PROPDMGEXP == "M") {PropertyDamage <- PROPDMG * 1000 * 1000}
+
+if ( CROPDMGEXP == "K") {CropDamage <- CROPDMG * 1000}
+if ( CROPDMGEXP == "M") {CropDamage <- CROPDMG * 1000 * 1000}
+     }
+)
+
+#### Rename and put variables in logical order.
+
+
+```
+
 
 
 ### Results
 
 #### Severe Storm Events -- type and frequency
+```{r}
+# Tabulate Fatailities and Damage by Storm Type
+# R commands include table(), xtabs() and ftable()  -- or "aggregate()"
+xtabs(formula = EVTYPE ~ c(FATALITIES, INJURIES, PropertyDamage, CropDamage), 
+      data = storms,
+      drop.unused.levels = TRUE)
+
+```
 
 #### Health Impact
 

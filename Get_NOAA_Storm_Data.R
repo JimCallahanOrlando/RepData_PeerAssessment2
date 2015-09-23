@@ -9,15 +9,7 @@
 ### LANGUAGE: R statistical programming language
 ###           R version 3.2.2 (2015-08-14) -- "Fire Safety"
 ###           Copyright (C) 2015 The R Foundation for Statistical Computing
-###           Platform: x86_64-w64-mingw32/x64 (64-bit)
-###
-### IDE:      RStudio
-###           Version 0.99.463 – © 2009-2014 RStudio, Inc.
-###
-### PLATFORM: Microsoft Windows 7 Professional [Version 6.1.7601]
 
-### descr has the file.head function for dumping the first few lines of a file without interpretation
-### require(descr)
 
 ### Set directory for this assignment and verify it.
 setwd("~/GitHub/RepData_PeerAssessment2")
