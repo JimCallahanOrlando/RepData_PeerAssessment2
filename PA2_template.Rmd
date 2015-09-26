@@ -11,6 +11,7 @@ output:
 Get this to work and then see what to do next.
 
 ### Data Processing
+Load the NOAA storm data file.
 ```{r}
 filename <- "~/GitHub/RepData_PeerAssessment2/data/repdata%2Fdata%2FStormData.csv.bz2"
 NOAA <- read.csv(filename, 
@@ -19,26 +20,40 @@ str(NOAA)
 ```
 
 
-
-
 ```{r}
 #### Select Columns of interest:
 ####        Primary key:    REFNUM
 ####        Date and Time:  BGN_DATE, BGN_TIME, 
-####        Location:       STATE__, COUNTY, COUNTY_END, LATITUDE, LONGITUDE
-####        Type of Storm:  EVTYPE
-####        Damage:         PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP
+####        Location:       STATE, COUNTY, COUNTY_END, LATITUDE, LONGITUDE,
+####        Type of Storm:  EVTYPE,
+####        Damage:         PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP,
 ####        Casualties:     FATALITIES, INJURIES
 
 # storms <- subset(NOAA, select())
+columnsubset <- c("REFNUM", "BGN_DATE", "BGN_TIME", "TIME_ZONE",
+                  "STATE", "COUNTY", "COUNTY_END", "LATITUDE", "LONGITUDE", 
+                  "EVTYPE", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP", 
+                  "FATALITIES", "INJURIES")
 
 #### Select Rows of interest (exclude freakish events without impact):
 #### Select only observations with at least one injury (or fatality) 
 ####         or non-zero property damage (or crop damage).
-storms <- storms[NOAA$INJURIES > 0 | NOAA$FATALITIES > 0 | NOAA$PROPDMG > 0 | NOAA$CROPDMG > 0]
+# rowsubset <- "NOAA$INJURIES > 0 || NOAA$FATALITIES > 0 || NOAA$PROPDMG > 0 || NOAA$CROPDMG > 0"
+
+
+storms <- NOAA[, columnsubset]
+str(storms)
 
 
 #### Select years of interest (Since 2001 "21st Century Storms" or last 25 years)
+
+#### Step 1: Create a year variable from date
+# datetime = as.POSIXct(storms$BGN_DATE, "%m/%d/%Y %H:%M:%S", tz = storms$TIME_ZONE)
+datetime = as.POSIXct(storms$BGN_DATE, "%m/%d/%Y %H:%M:%S", tz = "EST")
+storms$year <- format(datetime, "%Y")
+
+#### Step 2: Filter by year
+storms <- storms[as.numeric(storms$year) > 2001, ]
 
 #### Remove the original NOAA database
 rm(NOAA)
@@ -46,14 +61,17 @@ rm(NOAA)
 ```
 
 ```{r}
-#### Scale Property Damage and Crop Damage
+#### Scale Property Damage and Crop Damage by thouands and millions
+storms$PropertyDamage <- storms$PROPDMG
+storms$CropDamage     <- storms$CROPDMG
+
 with(storms, 
      {
-if ( PROPDMGEXP == "K") {PropertyDamage <- PROPDMG * 1000}
-if ( PROPDMGEXP == "M") {PropertyDamage <- PROPDMG * 1000 * 1000}
-
-if ( CROPDMGEXP == "K") {CropDamage <- CROPDMG * 1000}
-if ( CROPDMGEXP == "M") {CropDamage <- CROPDMG * 1000 * 1000}
+         PropertyDamage <- ifelse(PROPDMGEXP == "K", PROPDMG * 1000, PROPDMG)
+         PropertyDamage <- ifelse(PROPDMGEXP == "M", PROPDMG * 1000 * 1000, PROPDMG)
+         
+         CropDamage     <- ifelse(CROPDMGEXP == "K", CROPDMG * 1000, CROPDMG)
+         CropDamage     <- ifelse(CROPDMGEXP == "M", CROPDMG * 1000 * 1000, CROPDMG)
      }
 )
 
@@ -65,18 +83,24 @@ if ( CROPDMGEXP == "M") {CropDamage <- CROPDMG * 1000 * 1000}
 
 
 ### Results
+#### Tabulate Fatailities and Damage by Storm Type
 
-#### Severe Storm Events -- type and frequency
 ```{r}
 # Tabulate Fatailities and Damage by Storm Type
 # R commands include table(), xtabs() and ftable()  -- or "aggregate()"
-xtabs(formula = EVTYPE ~ c(FATALITIES, INJURIES, PropertyDamage, CropDamage), 
-      data = storms,
-      drop.unused.levels = TRUE)
+#### Severe Storm Events -- type and frequency
+#### Jared Lander's "R for Everyone" page 123
+stormtab <- aggregate(cbind(FATALITIES, INJURIES, PropertyDamage, CropDamage) 
+                      ~ EVTYPE + year, storms, sum)
+stormtab
 
 ```
 
 #### Health Impact
 
 #### Economic Impact
+
+
+
+# END
 
