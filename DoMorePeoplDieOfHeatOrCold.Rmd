@@ -7,13 +7,51 @@ output:
   html_document:
     keep_md: yes
 ---
-### Synopsis:
+#### Synopsis:
 The question of "Do More People Die of Extreme Heat or Excessive Cold?" is 
-addressed using data from the National Oceanic and Atmospheric Administration (NOAA) 
-"Storm Data" database.
+addressed using the **"R"** statistical language and data from the 
+**National Oceanic and Atmospheric Administration (NOAA) "Storm Data" database**.
 
-### Data Processing
-Load the NOAA "Storm Data" data file into the R statistical system.
+#### Data Processing  
+The **R** language is an open source version of the the **S** language developed 
+at Bell Labs during the "golden age" that also produced the **Unix** operating system
+and the **C** programming language. See:  <https://www.R-project.org/>
+
+
+Unlike **C**, **R** is an interpretive command language where the user types commands
+at the command line and gets an immediate response:
+
+```{r}
+2+2
+
+sqrt(25)
+
+GaussDidThisInHisHeadInElemetarySchool <- sum(1:100)
+print(GaussDidThisInHisHeadInElemetarySchool)
+```
+
+The last of these three examples is a problem solved by famous mathematician
+**Carl Friedrich Gauss (1777-1855)** while he was an eight year old child math prodigy 
+in elementary school. He solved it in his head, amazing his teacher. 
+For more of the story see: "Clever Carl" <http://nrich.maths.org/2478/index?nomenu=1>`
+
+For those of us who are not (child or adult) math prodigies we can solve the problem 
+with **R** by typing **sum(1:100)** at the command line. The **"<-"** assigns
+the result of the function to the variable name on the left.
+
+The command line commands can be combined in simple text files "scripts" or combined
+with compliled programs, data and documentation to form complete "packages".
+
+Many open source statisical "packages"" have been written in **R** making the complete
+system, the base language plus the optional downloadable statistical packages more
+powerful than proprietary statistical systems such as SAS or SPSS which, depending
+on the license, whose base price can be as much as $9,000 a seat.
+See: <http://www.sas.com/store/products-solutions/cSoftware-p1.html>
+
+When we load the **NOAA "Storm Data" data file** into the **R** statistical system,
+we will also be using the **"<-"** to assign the result to the variable name on
+the left.
+
 ```{r}
 filename <- "~/GitHub/RepData_PeerAssessment2/data/repdata%2Fdata%2FStormData.csv.bz2"
 NOAA <- read.csv(filename, 
@@ -22,39 +60,33 @@ NOAA <- read.csv(filename,
 
 
 ```{r}
-#### Select Columns of interest:
-####        Primary key:    REFNUM
-####        Date and Time:  BGN_DATE, BGN_TIME, 
-####        Location:       STATE, COUNTY, COUNTY_END, LATITUDE, LONGITUDE,
-####        Type of Storm:  EVTYPE,
-####        Damage:         PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP,
-####        Casualties:     FATALITIES, INJURIES
+# Select Columns of interest:
+#        Primary key:    REFNUM
+#        Date and Time:  BGN_DATE, BGN_TIME, TIME_ZONE,
+#        Location:       STATE, COUNTY, COUNTY_END, LATITUDE, LONGITUDE,
+#        Type of Storm:  EVTYPE,
+#        Damage:         PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP,
+#        Casualties:     FATALITIES, INJURIES
 
-# storms <- subset(NOAA, select())
 columnsubset <- c("REFNUM", "BGN_DATE", "BGN_TIME", "TIME_ZONE",
                   "STATE", "COUNTY", "COUNTY_END", "LATITUDE", "LONGITUDE", 
                   "EVTYPE", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP", 
                   "FATALITIES", "INJURIES")
 
-#### Select Rows of interest (exclude freakish events without impact):
-#### Select only observations with at least one injury (or fatality) 
-####         or non-zero property damage (or crop damage).
-# rowsubset <- "NOAA$INJURIES > 0 || NOAA$FATALITIES > 0 || NOAA$PROPDMG > 0 || NOAA$CROPDMG > 0"
-
-
 storms <- NOAA[, columnsubset]
 str(storms)
 
-
-#### Select years of interest (Since 2001 "21st Century Storms" or last 25 years)
+#### Select Rows of interest 
+#### Select years of interest (Since 2001 "21st Century Storms" or "last 25 years")
 
 #### Step 1: Create a year variable from date
-# datetime = as.POSIXct(storms$BGN_DATE, "%m/%d/%Y %H:%M:%S", tz = storms$TIME_ZONE)
-datetime = as.POSIXct(storms$BGN_DATE, "%m/%d/%Y %H:%M:%S", tz = "EST")
+#### Read in the date.
+#### NOAA's Time and time zone are in separate variables that we will ignore.
+datetime = as.POSIXct(storms$BGN_DATE, "%m/%d/%Y %H:%M:%S", tz = "")
 storms$year <- format(datetime, "%Y")
 
 #### Step 2: Filter by year
-storms <- storms[as.numeric(storms$year) >= 2001, ]
+storms <- storms[storms$year >= "2001", ]
 
 #### Remove the original NOAA database
 rm(NOAA)
@@ -70,9 +102,13 @@ with(storms,
      {
          PropertyDamage <- ifelse(PROPDMGEXP == "K", PROPDMG * 1000, PROPDMG)
          PropertyDamage <- ifelse(PROPDMGEXP == "M", PROPDMG * 1000 * 1000, PROPDMG)
+         # Round off total to nearest dollar.
+         PropertyDamage <- round(PropertyDamage, digits = 0)
          
          CropDamage     <- ifelse(CROPDMGEXP == "K", CROPDMG * 1000, CROPDMG)
          CropDamage     <- ifelse(CROPDMGEXP == "M", CROPDMG * 1000 * 1000, CROPDMG)
+         # Round off total to nearest dollar.
+         CropDamage     <- round(CropDamage, digits = 0)
      }
 )
 
@@ -81,26 +117,40 @@ with(storms,
 
 ```
 
-
-
-### Results
-#### Tabulate Fatalities and Damage by Storm Type
-
+#### Results
+#### Tabulate Fatalities and Damage by Storm Type and Year
 ```{r}
-# Tabulate Fatalities and Damage by Storm Type
-# R commands include table(), xtabs() and ftable()  -- or "aggregate()"
-#### Severe Storm Events -- type and frequency
-#### Jared Lander's "R for Everyone" page 123
-stormtab <- aggregate(cbind(FATALITIES, INJURIES, PropertyDamage) 
+#### Tabulate Fatalities and Damage by Storm Type and Year
+#### Userful R commands include table(), xtabs(), ftable()  or aggregate()
+#### This use of aggregate() is based on Jared Lander's "R for Everyone" page 123 
+#### where he uses aggregate() on the diamonds data set from the ggplot2 package.
+stormtab <- aggregate(cbind(FATALITIES, INJURIES, PropertyDamage, CropDamage) 
                       ~ EVTYPE + year, storms, sum)
-stormtab
-
 ```
 
 #### Health Impact
+```{r}
+# What type of storms caused the most fatalities in the most recent year (2011)?
+mostrecentyear <- max(stormtab$year)
+stormsrankyear <- stormtab[stormtab$year == mostrecentyear, ]
+
+# This is the sort -- rank by fatalities in the stormrankyear
+deadlystorms <- stormsrankyear[order(-stormsrankyear$FATALITIES, na.last = NA), ]
+# head(deadlystorms, 10)
+print(deadlystorms[1:10, c("EVTYPE", "FATALITIES", "INJURIES", "PropertyDamage", "CropDamage")],
+      justify = "left")
+```
+
+#### Property Damage
+```{r}
+# What type of storms caused the most fatalities in the most recent year (2011)?
+damagestorms <- stormsrankyear[order(-stormsrankyear$PropertyDamage, na.last = NA), ]
+head(damagestorms, 10)
+```
+
 
 Event Descriptions indicating Hot or Cold Weather  
-'''
+```
 COLD  
 COLD/WIND CHILL  
 COLD WIND CHILL TEMPERATURES  
@@ -122,6 +172,6 @@ UNUSUALLY COLD
 WINTER STORM  
 WINTER WEATHER  
 WINTER WEATHER/MIX  
-'''
+```
 
 # END
