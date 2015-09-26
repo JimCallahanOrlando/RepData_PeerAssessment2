@@ -8,9 +8,11 @@ output:
     keep_md: yes
 ---
 #### Synopsis:
-The question of "Do More People Die of Extreme Heat or Excessive Cold?" is 
+The question of **"Do More People Die of Extreme Heat or Excessive Cold?"** is 
 addressed using the **"R"** statistical language and data from the 
 **National Oceanic and Atmospheric Administration (NOAA) "Storm Data" database**.
+To put the question in perspective we first look at what types of storms cause
+the most deaths and property damage.
 
 #### Data Processing  
 The **R** language is an open source version of the the **S** language developed 
@@ -39,13 +41,14 @@ For those of us who are not (child or adult) math prodigies we can solve the pro
 with **R** by typing **sum(1:100)** at the command line. The **"<-"** assigns
 the result of the function to the variable name on the left.
 
-The command line commands can be combined in simple text files "scripts" or combined
-with compliled programs, data and documentation to form complete "packages".
+The command line commands can be combined in simple text files **"scripts"** or combined
+with compliled programs (compiled in **FORTRAN**, **C** or **C++**), data and 
+documentation to form complete  **"packages"**.
 
-Many open source statisical "packages"" have been written in **R** making the complete
-system, the base language plus the optional downloadable statistical packages more
-powerful than proprietary statistical systems such as SAS or SPSS which, depending
-on the license, whose base price can be as much as $9,000 a seat.
+Many open source statisical **"packages"** have been written in **R** making the 
+complete system, the base language plus the optional downloadable statistical packages 
+more powerful than proprietary statistical systems such as **SAS** or **SPSS** which, 
+depending on the license, base price can be as much as $9,000 a seat.
 See: <http://www.sas.com/store/products-solutions/cSoftware-p1.html>
 
 When we load the **NOAA "Storm Data" data file** into the **R** statistical system,
@@ -68,12 +71,12 @@ NOAA <- read.csv(filename,
 #        Damage:         PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP,
 #        Casualties:     FATALITIES, INJURIES
 
-columnsubset <- c("REFNUM", "BGN_DATE", "BGN_TIME", "TIME_ZONE",
+ColumnSubset <- c("REFNUM", "BGN_DATE", "BGN_TIME", "TIME_ZONE",
                   "STATE", "COUNTY", "COUNTY_END", "LATITUDE", "LONGITUDE", 
                   "EVTYPE", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP", 
                   "FATALITIES", "INJURIES")
 
-storms <- NOAA[, columnsubset]
+storms <- NOAA[, ColumnSubset]
 str(storms)
 
 #### Select Rows of interest 
@@ -85,7 +88,7 @@ str(storms)
 datetime = as.POSIXct(storms$BGN_DATE, "%m/%d/%Y %H:%M:%S", tz = "")
 storms$year <- format(datetime, "%Y")
 
-#### Step 2: Filter by year
+#### Step 2: Filter by year: "21st Century Storms"
 storms <- storms[storms$year >= "2001", ]
 
 #### Remove the original NOAA database
@@ -95,57 +98,92 @@ rm(NOAA)
 
 ```{r}
 #### Scale Property Damage and Crop Damage by thouands and millions
-storms$PropertyDamage <- storms$PROPDMG
-storms$CropDamage     <- storms$CROPDMG
+# Have to create series before using with()
+storms$PropertyDamage <- storms$PROPDMG   # Copy data; retain orginal intact
 
-with(storms, 
-     {
-         PropertyDamage <- ifelse(PROPDMGEXP == "K", PROPDMG * 1000, PROPDMG)
-         PropertyDamage <- ifelse(PROPDMGEXP == "M", PROPDMG * 1000 * 1000, PROPDMG)
-         # Round off total to nearest dollar.
-         PropertyDamage <- round(PropertyDamage, digits = 0)
-         
-         CropDamage     <- ifelse(CROPDMGEXP == "K", CROPDMG * 1000, CROPDMG)
-         CropDamage     <- ifelse(CROPDMGEXP == "M", CROPDMG * 1000 * 1000, CROPDMG)
-         # Round off total to nearest dollar.
-         CropDamage     <- round(CropDamage, digits = 0)
-     }
-)
+storms$PropertyDamage <- ifelse(storms$PROPDMGEXP == "K", 
+                                storms$PropertyDamage * 1000, 
+                                storms$PropertyDamage)
 
-#### Rename and put variables in logical order.
+storms$PropertyDamage <- ifelse(storms$PROPDMGEXP == "M", 
+                                storms$PropertyDamage * 1000*1000, 
+                                storms$PropertyDamage)
 
 
+storms$CropDamage     <- storms$CROPDMG   # Copy data; retain orginal intact
+
+storms$CropDamage     <- ifelse(storms$CROPDMGEXP == "K", 
+                                storms$CropDamage * 1000, 
+                                storms$CropDamage)
+
+storms$CropDamage     <- ifelse(storms$CROPDMGEXP == "M", 
+                                storms$CropDamage * 1000*1000, 
+                                storms$CropDamage) 
 ```
 
-#### Results
+
 #### Tabulate Fatalities and Damage by Storm Type and Year
 ```{r}
 #### Tabulate Fatalities and Damage by Storm Type and Year
 #### Userful R commands include table(), xtabs(), ftable()  or aggregate()
 #### This use of aggregate() is based on Jared Lander's "R for Everyone" page 123 
 #### where he uses aggregate() on the diamonds data set from the ggplot2 package.
-stormtab <- aggregate(cbind(FATALITIES, INJURIES, PropertyDamage, CropDamage) 
-                      ~ EVTYPE + year, storms, sum)
+# Template: aggregate(formula, data, FUN, ..., subset, na.action = na.omit)
+StormTot <- aggregate(
+    formula = cbind(FATALITIES, INJURIES, PropertyDamage, CropDamage) ~ EVTYPE + year, 
+    data    = storms, 
+    FUN     = sum)
+
+# Round off total to nearest dollar.
+StormTot$PropertyDamage <- round(StormTot$PropertyDamage, digits = 0)
+StormTot$CropDamage     <- round(StormTot$CropDamage, digits = 0)
+
+#### Rename and put variables in logical order.
+#### Order of columns:
+StormTot <- StormTot[ , c("year", "EVTYPE", "FATALITIES", "INJURIES", 
+                          "PropertyDamage", "CropDamage") ]
+
+#### The variables in "stormtab" have been aggregated by type of storm and year
+#### and thus the NOAA supplied names reflect the origin of the variable
+#### but not its current content, so it is appropriate to rename the variables
+#### for display.
+ColumnNames <- c("Year", "StormType", "Fatalities", "Injuries", "PropertyDamage", "CropDamage")
+colnames(StormTot) <- ColumnNames
 ```
 
+#### Results
 #### Health Impact
 ```{r}
 # What type of storms caused the most fatalities in the most recent year (2011)?
-mostrecentyear <- max(stormtab$year)
-stormsrankyear <- stormtab[stormtab$year == mostrecentyear, ]
+MostRecentYear <- max(StormTot$Year)
+StormsRankYear <- StormTot[StormTot$Year == MostRecentYear, ]
 
 # This is the sort -- rank by fatalities in the stormrankyear
-deadlystorms <- stormsrankyear[order(-stormsrankyear$FATALITIES, na.last = NA), ]
-# head(deadlystorms, 10)
-print(deadlystorms[1:10, c("EVTYPE", "FATALITIES", "INJURIES", "PropertyDamage", "CropDamage")],
-      justify = "left")
+DeadlyStorms <- StormsRankYear[order(-StormsRankYear$Fatalities, na.last = NA), ]
+
+# Renumber the rows
+RowNames <- as.character(1:nrow(DeadlyStorms))
+rownames(DeadlyStorms) <- RowNames
+
+# head(DeadlyStorms, 25)
+print( DeadlyStorms[1:25, 
+         c("StormType", "Fatalities", "Injuries", "PropertyDamage", "CropDamage")] 
+      )
 ```
 
 #### Property Damage
 ```{r}
-# What type of storms caused the most fatalities in the most recent year (2011)?
-damagestorms <- stormsrankyear[order(-stormsrankyear$PropertyDamage, na.last = NA), ]
-head(damagestorms, 10)
+# What type of storms caused the most property damage in the most recent year (2011)?
+DamageStorms <- StormsRankYear[order(-StormsRankYear$PropertyDamage, na.last = NA), ]
+
+# Renumber the rows
+RowNames <- as.character(1:nrow(DamageStorms))
+rownames(DamageStorms) <- RowNames
+
+# head(DamageStorms, 25)
+print( DamageStorms[1:25, 
+         c("StormType", "PropertyDamage", "CropDamage", "Fatalities", "Injuries")] 
+      )
 ```
 
 
