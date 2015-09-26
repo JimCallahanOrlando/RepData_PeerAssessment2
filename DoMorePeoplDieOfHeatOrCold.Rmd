@@ -1,22 +1,23 @@
 ---
-title: 'Reproducible Research: Peer Assessment 2'
+title: 'Do More People Die of Extreme Heat or Excessive Cold?'
 author: "Jim Callahan"
-date: "September 21, 2015"
+date: "September 25, 2015"
 output:
   pdf_document: default
   html_document:
     keep_md: yes
 ---
 ### Synopsis:
-Twenty-first century storms; a summary of the death toll, injuries and property damage.
+The question of "Do More People Die of Extreme Heat or Excessive Cold?" is 
+addressed using data from the National Oceanic and Atmospheric Administration (NOAA) 
+"Storm Data" database.
 
 ### Data Processing
-Load the NOAA storm data file.
+Load the NOAA "Storm Data" data file into the R statistical system.
 ```{r}
 filename <- "~/GitHub/RepData_PeerAssessment2/data/repdata%2Fdata%2FStormData.csv.bz2"
 NOAA <- read.csv(filename, 
                  stringsAsFactors = FALSE )
-str(NOAA)
 ```
 
 
@@ -90,7 +91,7 @@ with(storms,
 # R commands include table(), xtabs() and ftable()  -- or "aggregate()"
 #### Severe Storm Events -- type and frequency
 #### Jared Lander's "R for Everyone" page 123
-stormtab <- aggregate(cbind(FATALITIES, INJURIES, PropertyDamage, CropDamage) 
+stormtab <- aggregate(cbind(FATALITIES, INJURIES, PropertyDamage) 
                       ~ EVTYPE + year, storms, sum)
 stormtab
 
@@ -98,9 +99,29 @@ stormtab
 
 #### Health Impact
 
-#### Economic Impact
-
-
+Event Descriptions indicating Hot or Cold Weather  
+'''
+COLD  
+COLD/WIND CHILL  
+COLD WIND CHILL TEMPERATURES  
+EXCESSIVE HEAT  
+EXTREME COLD  
+EXTREME COLD/WIND CHILL  
+EXTREME WINDCHILL  
+FREEZE  
+FREEZING DRIZZLE  
+FREEZING RAIN  
+FROST/FREEZE  
+HARD FREEZE  
+HEAT  
+RECORD WARMTH  
+UNSEASONABLY COLD  
+UNSEASONABLY COOL  
+UNSEASONABLY WARM  
+UNUSUALLY COLD  
+WINTER STORM  
+WINTER WEATHER  
+WINTER WEATHER/MIX  
+'''
 
 # END
-
