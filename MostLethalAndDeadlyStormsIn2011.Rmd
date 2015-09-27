@@ -1,0 +1,245 @@
+---
+title: 'Most Lethal and Deadly Storm Types in 2011'
+author: "Jim Callahan"
+date: "September 26, 2015"
+output:
+  pdf_document: default
+  html_document:
+    keep_md: yes
+---
+#### Synopsis:   
+
+This paper is in response to **two questions:**  
+
+> **1. Across the United States, which types of events (as indicated in the EVTYPE variable) 
+> are most harmful with respect to population health?**
+>
+> **2. Across the United States, which types of events have the greatest economic consequences?**
+>  
+
+
+These questions are addressed using the **"R"** statistical language and data from the 
+**National Oceanic and Atmospheric Administration (NOAA) "Storm Data" database**.
+
+
+#### Data Processing   
+
+The **R** language is an open source version of the the **S** language developed 
+at Bell Labs during the "golden age" that also produced the **Unix** operating system
+and the **C** programming language. See:  <https://www.R-project.org/> for the **R**
+language and for the history of S and R languages, see:
+<https://www.r-project.org/nosvn/conferences/useR-2006/Slides/Chambers.pdf> ,  
+
+<http://blog.revolutionanalytics.com/2014/01/john-chambers-recounts-the-history-of-s-and-r.html>   
+
+and <https://www.stat.auckland.ac.nz/~ihaka/downloads/Massey.pdf>  
+
+
+Unlike **C**, **R** is an interpretive command language where the user types commands
+at the command line and gets an immediate response:
+
+```{r}
+2+2
+
+sqrt(25)
+
+GaussDidThisInHisHeadInElemetarySchool <- sum(1:100)
+print(GaussDidThisInHisHeadInElemetarySchool)
+```
+
+The last of these three examples is a problem solved by famous mathematician
+**Carl Friedrich Gauss (1777-1855)** while he was an eight year old child math prodigy 
+in elementary school. He solved it in his head, amazing his teacher. 
+For more of the story see: "Clever Carl" <http://nrich.maths.org/2478/index?nomenu=1>`
+
+For those of us who are not (child or adult) math prodigies we can solve the problem 
+with **R** by typing **sum(1:100)** at the command line. The **"<-"** assigns
+the result of the function to the variable name on the left.
+
+The command line commands can be combined in simple text files **"scripts"** or combined
+with compliled programs (compiled in **FORTRAN**, **C** or **C++**), data and 
+documentation to form complete  **"packages"**.
+
+Many open source statisical **"packages"** have been written in **R** making the 
+complete system, the base language plus the optional downloadable statistical packages 
+competitive with traditional statistical systems such as **SAS** or **SPSS**.   
+
+When we load the **NOAA "Storm Data" data file** into the **R** statistical system,
+we will also be using the "**<-**" to assign the result to the variable name on
+the left.
+
+```{r}
+filename <- "~/GitHub/RepData_PeerAssessment2/data/repdata%2Fdata%2FStormData.csv.bz2"
+NOAA <- read.csv(filename, 
+                 stringsAsFactors = FALSE )
+```
+
+
+```{r}
+# Select Columns of interest:
+#        Primary key:    REFNUM
+#        Date and Time:  BGN_DATE, BGN_TIME, TIME_ZONE,
+#        Location:       STATE, COUNTY, COUNTY_END, LATITUDE, LONGITUDE,
+#        Type of Storm:  EVTYPE,
+#        Damage:         PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP,
+#        Casualties:     FATALITIES, INJURIES
+
+ColumnSubset <- c("REFNUM", "BGN_DATE", 
+                  "STATE", "COUNTY", "COUNTY_END", "LATITUDE", "LONGITUDE", 
+                  "EVTYPE", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP", 
+                  "FATALITIES", "INJURIES")
+
+storms <- NOAA[, ColumnSubset]
+str(storms)
+
+# Select Rows of interest 
+# Select years of interest (Since 2001 "21st Century Storms" or "last 25 years")
+
+# Step 1: Create a year variable from the date;
+datetime = as.POSIXct(storms$BGN_DATE, "%m/%d/%Y %H:%M:%S", tz = "")
+storms$year <- format(datetime, "%Y")
+
+# Step 2: Filter by year: "21st Century Storms"
+storms <- storms[storms$year >= "2001", ]
+
+# Garbage Collection: Remove the original NOAA database from memory
+rm(NOAA)
+
+```
+
+We can't simply sum the property damage variable, because some values are in thousands ("K")
+and others are in millions ("M"). So, we need to rescale the variables using the appropriate
+multipliers. The same goes for the crop damage variable.
+
+```{r}
+# Scale Property Damage and Crop Damage by thouands and millions
+storms$PropertyDamage <- storms$PROPDMG   # Copy data; retain orginal intact
+
+storms$PropertyDamage <- ifelse(storms$PROPDMGEXP == "K", 
+                                storms$PropertyDamage * 1000, 
+                                storms$PropertyDamage)
+
+storms$PropertyDamage <- ifelse(storms$PROPDMGEXP == "M", 
+                                storms$PropertyDamage * 1000*1000, 
+                                storms$PropertyDamage)
+
+
+storms$CropDamage     <- storms$CROPDMG   # Copy data; retain orginal intact
+
+storms$CropDamage     <- ifelse(storms$CROPDMGEXP == "K", 
+                                storms$CropDamage * 1000, 
+                                storms$CropDamage)
+
+storms$CropDamage     <- ifelse(storms$CROPDMGEXP == "M", 
+                                storms$CropDamage * 1000*1000, 
+                                storms$CropDamage) 
+```
+
+
+#### Fatalities and Damage by Storm Type and Year   
+
+NOAA's "Storm Data" database is a comprehensive listing of major storm events.
+Each tornado is a seperate event and tornados that cross state lines may count as
+two tornado events. So, to compare the annual impact of "tornadoes" to the annual impact
+of floods, we have to add up all of the data from the tornado events in a given year.
+It is helpful to sum by year, because many managers are used to annual summaries. 
+Moreover, while human lives are comparable, it is more problematic to add together damage 
+estimates from the 1950s and 1960s when houses might cost in the tens of thousands of dollars
+to damage estimates from the current century when the cost of houses are measured
+in the hundreds of thousands of dollars. While it is simple to multiply by a Consumer Price Index (CPI) or a more specialized housing price index, given the magnitude of the price changes
+the choice of index could by itself could distort the analysis.
+```{r}
+# Tabulate Fatalities and Damage by Storm Type and Year
+# Userful R commands include table(), xtabs(), ftable()  or aggregate()
+# This use of aggregate() is based on Jared Lander's "R for Everyone" page 123 
+# where he uses aggregate() on the diamonds data set from the ggplot2 package.
+# Template: aggregate(formula, data, FUN, ..., subset, na.action = na.omit)
+StormTot <- aggregate(
+    formula = cbind(FATALITIES, INJURIES, PropertyDamage, CropDamage) ~ EVTYPE + year, 
+    data    = storms, 
+    FUN     = sum)
+
+# Round off total to nearest dollar
+# because the estimates are not accurate to nearest penny.
+StormTot$PropertyDamage <- round(StormTot$PropertyDamage, digits = 0)
+StormTot$CropDamage     <- round(StormTot$CropDamage, digits = 0)
+
+#### Rename and put variables in logical order.
+#### Order of columns:
+StormTot <- StormTot[ , c("year", "EVTYPE", "FATALITIES", "INJURIES", 
+                          "PropertyDamage", "CropDamage") ]
+
+#### The variables in "stormtot" have been aggregated by type of storm and year
+#### and thus the NOAA supplied names reflect the origin of the variable
+#### but not its current content, so it is appropriate to rename the variables
+#### for display.
+ColumnNames <- c("Year", "StormType", "Fatalities", "Injuries", "PropertyDamage", "CropDamage")
+colnames(StormTot) <- ColumnNames
+```
+
+#### Results  
+
+#### Health Impact  
+
+This is in answer to the question:   
+
+> **"Across the United States, which types of events (as indicated in the EVTYPE variable) 
+> are most harmful with respect to population health?"**   
+
+To prepare a ranking we sort the data and number the rows.
+```{r}
+# What type of storms caused the most fatalities in the most recent year (2011)?
+MostRecentYear <- max(StormTot$Year)
+StormsRankYear <- StormTot[StormTot$Year == MostRecentYear, ]
+
+# This is the sort -- rank by fatalities in the stormrankyear
+DeadlyStorms <- StormsRankYear[order(-StormsRankYear$Fatalities, na.last = NA), ]
+
+# Renumber the rows
+RowNames <- as.character(1:nrow(DeadlyStorms))
+rownames(DeadlyStorms) <- RowNames
+```
+
+#### Health Impact in `r max(StormTot$Year)` alone  
+```{r}
+print( DeadlyStorms[1:25, 
+         c("StormType", "Fatalities", "Injuries", "PropertyDamage", "CropDamage")] 
+      )
+```
+
+#### Property Damage  
+
+This is in answer to the question:   
+
+> **Across the United States, which types of events have the greatest economic 
+> consequences?**
+
+Again, to prepare a ranking we sort the data and number the rows.
+```{r}
+# What type of storms caused the most property damage in the most recent year (2011)?
+DamageStorms <- StormsRankYear[order(-StormsRankYear$PropertyDamage, na.last = NA), ]
+
+# Renumber the rows
+RowNames <- as.character(1:nrow(DamageStorms))
+rownames(DamageStorms) <- RowNames
+```
+
+#### Property Damage  in `r max(StormTot$Year)` alone   
+```{r}
+print( DamageStorms[1:25, 
+         c("StormType", "PropertyDamage", "CropDamage", "Fatalities", "Injuries")] 
+      )
+```
+
+
+#### Do fatalities and storm damage alawys go together?   
+
+```{r}
+library(ggplot2)
+ggplot(StormsRankYear, aes(x=log(Fatalities), y=log(PropertyDamage))) + geom_point()
+
+```
+
+
+
+### END
